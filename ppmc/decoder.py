@@ -26,7 +26,7 @@ def decode_symbol(arith: ArithmeticDecoder, model: PPMModel) -> int:
         if node is None or not node.counts:
             continue
 
-        symbols, cum_freqs, total = model.get_distribution(node, exclusion_set)
+        symbols, cum_freqs, total, _sym_to_idx = model.get_distribution(node, exclusion_set)
 
         decoded_idx = arith.decode_symbol(cum_freqs, total)
 

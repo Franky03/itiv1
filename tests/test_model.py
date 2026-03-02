@@ -77,7 +77,7 @@ def test_get_distribution_with_exclusion():
     print("-" * 70)
 
     # 1. Sem exclusão
-    symbols, cum, total = m.get_distribution(root, set())
+    symbols, cum, total, sym_to_idx = m.get_distribution(root, set())
     sym_char = [chr(s) for s in symbols]
     print(f"CENÁRIO 1: Sem exclusão (tentando adivinhar de primeira)")
     print(f"Símbolos disponíveis: {sym_char}")
@@ -92,7 +92,7 @@ def test_get_distribution_with_exclusion():
     
     # 2. Com exclusão
     print(f"CENÁRIO 2: Com exclusão de 'a' (caímos de um contexto maior e sabemos que não é 'a')")
-    symbols2, cum2, total2 = m.get_distribution(root, {ord('a')})
+    symbols2, cum2, total2, sym_to_idx2 = m.get_distribution(root, {ord('a')})
     sym_char2 = [chr(s) for s in symbols2]
     
     print(f"Símbolos disponíveis agora: {sym_char2}  <-- O 'a' sumiu!")

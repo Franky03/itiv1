@@ -4,12 +4,14 @@ class TrieNode:
     Usa __slots__ para reduzir ~40% do uso de memória
     (em modelos de alta ordem, podem existir milhões de nós).
     """
-    __slots__ = ('counts', 'children', 'escape_count')
+    __slots__ = ('counts', 'children', 'escape_count', '_cache_key', '_cache_val')
 
     def __init__(self):
         self.counts: dict[int, int] = {}          # byte → frequência
         self.children: dict[int, 'TrieNode'] = {} # byte → nó filho
         self.escape_count: int = 0                # nº de símbolos distintos (Método C)
+        self._cache_key = None   # (frozenset de exclusion_set, total_count)
+        self._cache_val = None   # resultado cacheado
 
 class PPMModel:
     def __init__(self, max_order: int):
@@ -44,7 +46,7 @@ class PPMModel:
         self,
         node: TrieNode,
         exclusion_set: set[int]
-    ) -> tuple[list[int], list[int], int]:
+    ) -> tuple[list[int], list[int], int, dict[int, int]]:
         """
         Calcula a distribuição de probabilidade para codificação aritmética,
         excluindo símbolos da exclusion_set.
@@ -54,10 +56,16 @@ class PPMModel:
             cum_freqs  : frequências cumulativas, comprimento = len(symbols) + 1
                          (última posição = total, inclui o ESC)
             total      : soma de todas as contagens (símbolos + ESC)
+            sym_to_idx : dicionário símbolo → índice em symbols (O(1) lookup)
 
         O ESC não aparece em 'symbols' mas está implícito no último intervalo
         de cum_freqs (de cum_freqs[-2] até cum_freqs[-1]).
         """
+
+        cache_key = (frozenset(exclusion_set), sum(node.counts.values()))
+        if node._cache_key == cache_key:
+            return node._cache_val
+        
         # Símbolos disponíveis: vistos no nó e não excluídos
         symbols = sorted(s for s in node.counts if s not in exclusion_set)
 
@@ -72,7 +80,12 @@ class PPMModel:
         total = cum[-1] + esc_count
         cum.append(total)   # intervalo do ESC = [cum[-2], total)
 
-        return symbols, cum, total
+        sym_to_idx = {s: i for i, s in enumerate(symbols)}
+        result = (symbols, cum, total, sym_to_idx)
+        
+        node._cache_key = cache_key
+        node._cache_val = result
+        return result
     
     # ── Atualização do modelo ─────────────────────────────────────────────
 

@@ -32,11 +32,11 @@ def encode_symbol(arith: ArithmeticEncoder, model: PPMModel, symbol: int) -> Non
         if node is None or not node.counts:
             continue
 
-        symbols, cum_freqs, total = model.get_distribution(node, exclusion_set)
+        symbols, cum_freqs, total, sym_to_idx = model.get_distribution(node, exclusion_set)
 
-        if symbol in symbols:
+        if symbol in sym_to_idx:
             # Símbolo encontrado: codifica diretamente
-            idx = symbols.index(symbol)
+            idx = sym_to_idx[symbol]
             arith.encode_symbol(cum_freqs[idx], cum_freqs[idx + 1], total)
             return
         else:
