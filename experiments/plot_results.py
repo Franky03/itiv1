@@ -5,7 +5,7 @@ import matplotlib.ticker as ticker
 
 from experiments.analysis import load_samples, find_stabilization_point, find_transition_points
 
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 
 
 # ── Gráfico 1: Comprimento Médio Progressivo ─────────────────────────────────
@@ -15,7 +15,8 @@ def plot_progressive_mean(
     title: str,
     output_path: str | pathlib.Path,
     show_stabilization: bool = True,
-    show_transitions: bool = False
+    show_transitions: bool = False,
+    resets_csv: str | pathlib.Path | None = None
 ):
     samples = load_samples(csv_path)
     ns = [s[0] for s in samples]
@@ -36,6 +37,18 @@ def plot_progressive_mean(
         for i, t in enumerate(transitions):
             ax.axvline(x=t[0], color='darkorange', linestyle=':', linewidth=0.8, alpha=0.7,
                        label='Transição' if i == 0 else None)
+
+    # Linhas vermelhas nos pontos de reset do monitor
+    if resets_csv and pathlib.Path(resets_csv).exists():
+        reset_positions = []
+        with open(resets_csv) as f:
+            reader = csv.reader(f)
+            next(reader)  # pula header
+            for row in reader:
+                reset_positions.append(int(row[0]))
+        for i, pos in enumerate(reset_positions):
+            ax.axvline(x=pos, color='red', linestyle='-', linewidth=0.6, alpha=0.5,
+                       label='Reset' if i == 0 else None)
 
     ax.set_xlabel('Posição n (bytes)', fontsize=12)
     ax.set_ylabel('L(n) = bits totais / n  (bits/símbolo)', fontsize=12)
@@ -83,7 +96,7 @@ def plot_comparison(
     benchmark_csv: str | pathlib.Path,
     external_csv: str | pathlib.Path,
     kmax_to_compare: int = 5,
-    output_path: str | pathlib.Path = "results/comparison.png"
+    output_path: str | pathlib.Path = "results/hash/comparison.png"
 ):
     # Carrega PPM-C
     ppmc_data = {
@@ -144,7 +157,8 @@ if __name__ == "__main__":
             title="Comprimento Médio Progressivo — Silesia Completo (PPM-C, Kmax=5)",
             output_path=RESULTS_DIR / "progressive_silesia.png",
             show_stabilization=False,
-            show_transitions=True
+            show_transitions=True,
+            resets_csv=RESULTS_DIR / "resets_silesia_K5.csv"
         )
 
     # Gráfico bps vs Kmax

@@ -93,5 +93,5 @@ if __name__ == "__main__":
         print_summary(sys.argv[1])
     else:
         # Analisa todos os CSVs de progressivo encontrados em results/
-        for f in sorted(pathlib.Path("results").glob("progressive_*.csv")):
+        for f in sorted(pathlib.Path("results/hash").glob("progressive_*.csv")):
             print_summary(f)

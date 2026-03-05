@@ -16,8 +16,8 @@ echo "════════════════════════�
 
 for FILE in "$CORPUS_DIR"/*; do
     NAME=$(basename "$FILE")
-    python3 -m ppmc.cli compress "$FILE" "/tmp/${NAME}.ppmc" --order 5 --window 1000
-    python3 -m ppmc.cli decompress "/tmp/${NAME}.ppmc" "/tmp/${NAME}.recovered"
+    pypy3 -m ppmc.cli compress "$FILE" "/tmp/${NAME}.ppmc" --order 5 --window 1000
+    pypy3 -m ppmc.cli decompress "/tmp/${NAME}.ppmc" "/tmp/${NAME}.recovered"
 
     if cmp -s "$FILE" "/tmp/${NAME}.recovered"; then
         echo "✓ $NAME"
@@ -43,9 +43,9 @@ echo "════════════════════════�
 echo "  Etapa 3.1: Benchmark PPM-C (Kmax 0..10) + comparação"
 echo "═══════════════════════════════════════════════════════════"
 
-python3 -m experiments.benchmark --kmax 0 11
-python3 -m experiments.compare_external
-python3 -m experiments.generate_tables
+pypy3 -m experiments.benchmark --kmax 0 11
+pypy3 -m experiments.compare_external
+pypy3 -m experiments.generate_tables
 
 echo ""
 
@@ -55,7 +55,7 @@ echo "════════════════════════�
 echo "  Etapa 3.2: Comprimento Médio Progressivo — Dickens"
 echo "═══════════════════════════════════════════════════════════"
 
-python3 -m experiments.progressive_mean dickens 5
+pypy3 -m experiments.progressive_mean dickens 5
 
 echo ""
 
@@ -65,7 +65,7 @@ echo "════════════════════════�
 echo "  Etapa 3.3: Comprimento Médio Progressivo — Silesia"
 echo "═══════════════════════════════════════════════════════════"
 
-python3 -m experiments.progressive_mean_silesia
+pypy3 -m experiments.progressive_mean_silesia
 
 echo ""
 
@@ -76,9 +76,9 @@ echo "  Gerando gráficos e análise"
 echo "═══════════════════════════════════════════════════════════"
 
 python3 -m experiments.plot_results
-python3 -m experiments.analysis
+pypy3 -m experiments.analysis
 
 echo ""
 echo "═══════════════════════════════════════════════════════════"
-echo "  Tudo concluído! Resultados em results/"
+echo "  Tudo concluído! Resultados em results/hash/"
 echo "═══════════════════════════════════════════════════════════"

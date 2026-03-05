@@ -1,9 +1,9 @@
 import struct
 from ppmc.utils import BitReader
 from ppmc.arithmetic import ArithmeticDecoder
-from ppmc.model import PPMModel
+from ppmc.model import PPMModel, HashPPMModel
 from ppmc.decoder import decode_symbol
-from ppmc.compressor import MAGIC, HEADER_FORMAT, HEADER_SIZE
+from ppmc.compressor import MAGIC, HEADER_FORMAT, HEADER_SIZE, BACKEND_HASH
 
 RESET_TOKEN = 256
 
@@ -17,17 +17,24 @@ def decompress(compressed_data: bytes) -> bytes:
         raise ValueError("Dados comprimidos muito curtos para conter header.")
 
     # ── Ler header ────────────────────────────────────────────────────────────
-    magic, max_order, original_size, window_size, threshold = struct.unpack(
+    magic, max_order, original_size, window_size, threshold, backend_byte = struct.unpack(
         HEADER_FORMAT, compressed_data[:HEADER_SIZE]
     )
 
     if magic != MAGIC:
         raise ValueError(f"Magic inválido: {magic!r} (esperado {MAGIC!r})")
 
+    backend = 'hash' if backend_byte == BACKEND_HASH else 'trie'
+
+    def make_model():
+        if backend == 'hash':
+            return HashPPMModel(max_order)
+        return PPMModel(max_order)
+
     # ── Decodificação ─────────────────────────────────────────────────────────
     reader = BitReader(compressed_data[HEADER_SIZE:])
     arith  = ArithmeticDecoder(reader)
-    model  = PPMModel(max_order)
+    model  = make_model()
 
     result = []
 
@@ -35,8 +42,7 @@ def decompress(compressed_data: bytes) -> bytes:
         sym = decode_symbol(arith, model)
 
         if sym == RESET_TOKEN:
-            # Token de reset: reinicia o modelo e NÃO adiciona nada à saída
-            model = PPMModel(max_order)
+            model = make_model()
             continue
 
         result.append(sym)

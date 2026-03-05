@@ -7,7 +7,7 @@ from ppmc.decompressor import decompress
 from ppmc.parallel     import compress_parallel, decompress_parallel
 
 CORPUS_DIR  = pathlib.Path("corpus/silesia")
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 OUTPUT_CSV  = RESULTS_DIR / "benchmark.csv"
 
 FIELDNAMES = [

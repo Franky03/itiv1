@@ -9,13 +9,12 @@ import time
 
 from ppmc.utils      import BitWriter
 from ppmc.arithmetic import ArithmeticEncoder
-from ppmc.model      import PPMModel
+from ppmc.model      import HashPPMModel
 from ppmc.encoder    import encode_symbol, encode_reset_token
 from ppmc.monitor    import ResetMonitor
-from ppmc.compressor import HEADER_SIZE
 
 CORPUS_DIR  = pathlib.Path("corpus/silesia")
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 
 
 def run_silesia_progressive(max_order: int = 5, sample_every: int = 100):
@@ -41,10 +40,11 @@ def run_silesia_progressive(max_order: int = 5, sample_every: int = 100):
 
     writer  = BitWriter()
     arith   = ArithmeticEncoder(writer)
-    model   = PPMModel(max_order)
+    model   = HashPPMModel(max_order)
     monitor = ResetMonitor(1000, 10.0)
 
     samples: list[tuple[int, float]] = []
+    reset_positions: list[int] = []
 
     for n, byte in enumerate(all_data, start=1):
         encode_symbol(arith, model, byte)
@@ -57,8 +57,9 @@ def run_silesia_progressive(max_order: int = 5, sample_every: int = 100):
 
         if monitor.should_reset():
             encode_reset_token(arith, model)
-            model   = PPMModel(max_order)
+            model   = HashPPMModel(max_order)
             monitor.clear()
+            reset_positions.append(n)
 
         if n % 1_000_000 == 0:
             print(f"  {n/1e6:.0f}M / {total_bytes/1e6:.0f}M  L(n)={writer.bits_written/n:.4f} bps")
@@ -66,16 +67,25 @@ def run_silesia_progressive(max_order: int = 5, sample_every: int = 100):
     arith.finish()
     elapsed = time.perf_counter() - t0
 
-    # Salvar CSV
+    # Salvar CSV de amostras
     out_csv = RESULTS_DIR / f"progressive_silesia_all_K{max_order}.csv"
     with open(out_csv, 'w', newline='') as f:
         w = csv.writer(f)
         w.writerow(['n', 'L_n'])
         w.writerows(samples)
 
+    # Salvar CSV de posições de reset
+    resets_csv = RESULTS_DIR / f"resets_silesia_K{max_order}.csv"
+    with open(resets_csv, 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['n'])
+        for pos in reset_positions:
+            w.writerow([pos])
+
     bps_final = writer.bits_written / total_bytes
-    print(f"\n  L(n) final: {bps_final:.4f} bps  |  Amostras: {len(samples)}  |  Tempo: {elapsed:.1f}s")
+    print(f"\n  L(n) final: {bps_final:.4f} bps  |  Amostras: {len(samples)}  |  Resets: {len(reset_positions)}  |  Tempo: {elapsed:.1f}s")
     print(f"  Salvo em: {out_csv}")
+    print(f"  Resets em: {resets_csv}")
 
 
 if __name__ == "__main__":

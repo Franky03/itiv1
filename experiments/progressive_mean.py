@@ -4,12 +4,12 @@ import time
 
 from ppmc.utils        import BitWriter
 from ppmc.arithmetic   import ArithmeticEncoder
-from ppmc.model        import PPMModel
+from ppmc.model        import HashPPMModel
 from ppmc.encoder      import encode_symbol, encode_reset_token
 from ppmc.monitor      import ResetMonitor
 from ppmc.compressor   import HEADER_SIZE
 
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 
 
 def compress_with_tracking(
@@ -25,16 +25,17 @@ def compress_with_tracking(
     onde amostras = lista de (posição_n, L(n)).
     """
     import struct
-    from ppmc.compressor import MAGIC, HEADER_FORMAT
+    from ppmc.compressor import MAGIC, HEADER_FORMAT, BACKEND_HASH
 
     header = struct.pack(
         HEADER_FORMAT,
-        MAGIC, max_order, len(input_data), window_size, int(reset_threshold_pct)
+        MAGIC, max_order, len(input_data), window_size, int(reset_threshold_pct),
+        BACKEND_HASH
     )
 
     writer  = BitWriter()
     arith   = ArithmeticEncoder(writer)
-    model   = PPMModel(max_order)
+    model   = HashPPMModel(max_order)
     monitor = ResetMonitor(window_size, reset_threshold_pct)
 
     samples: list[tuple[int, float]] = []
@@ -52,7 +53,7 @@ def compress_with_tracking(
 
         if monitor.should_reset():
             encode_reset_token(arith, model)
-            model   = PPMModel(max_order)
+            model   = HashPPMModel(max_order)
             monitor.clear()
 
     arith.finish()

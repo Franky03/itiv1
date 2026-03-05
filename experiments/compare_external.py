@@ -5,7 +5,7 @@ import tempfile
 import time
 
 CORPUS_DIR  = pathlib.Path("corpus/silesia")
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 OUTPUT_CSV  = RESULTS_DIR / "external_comparison.csv"
 
 

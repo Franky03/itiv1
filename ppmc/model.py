@@ -13,6 +13,80 @@ class TrieNode:
         self._cache_key = None   # (frozenset de exclusion_set, total_count)
         self._cache_val = None   # resultado cacheado
 
+class ContextEntry:
+    __slots__ = ('counts', 'escape_count', '_cache_key', '_cache_val')
+    def __init__(self):
+        self.counts: dict[int, int] = {}          # byte → frequência
+        self.escape_count: int = 0                # nº de símbolos distintos (Método C)
+        self._cache_key = None   # (frozenset de exclusion_set, total_count)
+        self._cache_val = None   # resultado cacheado
+
+class HashPPMModel:
+    """
+    Implementação alternativa de PPM usando dicionário hash para contextos.
+    Pode ser mais eficiente em ordens muito altas, onde a trie se torna enorme.
+    """
+    def __init__(self, max_order: int):
+        self.max_order = max_order
+        # Hash: uma única tabela
+        #   chave = tupla dos bytes do contexto, ex: (97, 98) para ordem 2
+        #   valor = { "counts": {byte: freq}, "escape_count": int }
+        self.contexts: dict[tuple[int, ...], ContextEntry] = {}
+        self.context: list[int] = []    # janela deslizante dos últimos bytes vistos
+
+    def _context_key(self, order: int) -> tuple[int, ...]:
+        if order == 0:
+            return ()
+        return tuple(self.context[-order:])
+
+    def get_context_node(self, order: int) -> ContextEntry | None:
+        return self.contexts.get(self._context_key(order))
+
+    def _get_or_create(self, order: int) -> ContextEntry:
+        key = self._context_key(order)
+        if key not in self.contexts:
+            self.contexts[key] = ContextEntry()
+        return self.contexts[key]
+
+    def get_distribution(
+        self,
+        entry: ContextEntry,
+        exclusion_set: set[int]
+    ) -> tuple[list[int], list[int], int, dict[int, int]]:
+        
+        cache_key = (frozenset(exclusion_set), sum(entry.counts.values()))
+        if entry._cache_key == cache_key:
+            return entry._cache_val
+        
+        symbols = sorted(s for s in entry.counts if s not in exclusion_set)
+
+        cum = [0]
+        for s in symbols:
+            cum.append(cum[-1] + entry.counts[s])
+        
+        esc_count = entry.escape_count
+        total = cum[-1] + esc_count
+        cum.append(total)
+
+        sym_to_idx = {s: i for i, s in enumerate(symbols)}
+        result = (symbols, cum, total, sym_to_idx)
+        
+        entry._cache_key = cache_key
+        entry._cache_val = result
+        return result
+
+    def update(self, symbol: int):
+        max_usable = min(self.max_order, len(self.context))
+        for order in range(max_usable + 1):
+            entry = self._get_or_create(order)
+            if symbol not in entry.counts:
+                entry.escape_count += 1
+            entry.counts[symbol] = entry.counts.get(symbol, 0) + 1
+
+        self.context.append(symbol)
+        if len(self.context) > self.max_order:
+            self.context.pop(0)
+
 class PPMModel:
     def __init__(self, max_order: int):
         self.max_order = max_order

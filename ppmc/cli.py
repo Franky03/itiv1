@@ -23,6 +23,7 @@ def cmd_compress(args):
         max_order         = args.order,
         window_size       = args.window,
         reset_threshold_pct = args.threshold,
+        backend           = args.backend,
     )
     elapsed = time.perf_counter() - t0
 
@@ -68,6 +69,7 @@ def main():
     p_enc = sub.add_parser('compress', help='Comprimir um arquivo')
     p_enc.add_argument('input',  help='Arquivo de entrada')
     p_enc.add_argument('output', help='Arquivo de saída (.ppmc)')
+    p_enc.add_argument('--backend', choices=['trie', 'hash'], default='hash', help='Estrutura de dados do modelo (padrão: hash)')
     p_enc.add_argument('--order',     type=int,   default=5,    help='Kmax (padrão: 5)')
     p_enc.add_argument('--window',    type=int,   default=1000, help='Tamanho da janela j (padrão: 1000)')
     p_enc.add_argument('--threshold', type=float, default=10.0, help='Limiar de reset em %% (padrão: 10.0)')
