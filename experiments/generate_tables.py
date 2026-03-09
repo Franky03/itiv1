@@ -1,7 +1,7 @@
 import csv
 import pathlib
 
-RESULTS_DIR = pathlib.Path("results")
+RESULTS_DIR = pathlib.Path("results/hash")
 
 
 def table_bps_by_kmax(filename: str):

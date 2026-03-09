@@ -21,7 +21,7 @@ def compress(
     input_data: bytes,
     max_order: int = 5,
     window_size: int = 1000,
-    reset_threshold_pct: float = 10.0,
+    reset_threshold_pct: float = 200.0,
     backend: str = 'hash'
 ) -> bytes:
     """
@@ -48,10 +48,9 @@ def compress(
     monitor = ResetMonitor(window_size, reset_threshold_pct)
 
     for byte in input_data:
-        bits_before = writer.bits_written
         encode_symbol(arith, model, byte)
         model.update(byte)
-        monitor.record(writer.bits_written - bits_before)
+        monitor.record(writer.bits_written)
 
         if monitor.should_reset():
             # 1. Emite token RESET no bitstream
@@ -59,7 +58,7 @@ def compress(
             # 2. Reinicia o modelo (descarta todo o histórico)
             model   = _create_model(backend, max_order)
             # 3. Reinicia o monitor
-            monitor.clear()
+            monitor.clear(writer.bits_written)
 
     arith.finish()
     bitstream = writer.flush()
