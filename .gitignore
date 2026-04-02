@@ -5,3 +5,8 @@ results/
 *.compressed
 .venv/
 silesia/
+*.zip
+*.tar.gz
+*.parquet
+*.log
+*.csv
