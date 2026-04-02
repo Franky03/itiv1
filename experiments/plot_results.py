@@ -238,7 +238,9 @@ def plot_reset_comparison(
     no_reset_csv: str | pathlib.Path,
     resets_csv: str | pathlib.Path,
     output_path: str | pathlib.Path = "results/hash/silesia_reset_comparison.png",
+    corpus_dir: str | pathlib.Path = "corpus/silesia",
 ):
+    """Gráfico com/sem reset + fronteiras de arquivo (vermelho) + pontos de reset (verde)."""
     def read_csv(path):
         samples = load_samples(path)
         return [s[0] for s in samples], [s[1] for s in samples]
@@ -246,6 +248,11 @@ def plot_reset_comparison(
     ns_r, ls_r = read_csv(with_reset_csv)
     ns_n, ls_n = read_csv(no_reset_csv)
 
+    fig, ax = plt.subplots(figsize=(14, 5))
+    ax.plot(ns_n, ls_n, linewidth=0.9, color='steelblue', label='Sem reset')
+    ax.plot(ns_r, ls_r, linewidth=0.9, color='darkorange', label='Com reset adaptativo')
+
+    # Linhas verdes nos pontos de reset
     reset_positions = []
     if pathlib.Path(resets_csv).exists():
         with open(resets_csv) as f:
@@ -253,14 +260,21 @@ def plot_reset_comparison(
             next(reader)
             for row in reader:
                 reset_positions.append(int(row[0]))
-
-    fig, ax = plt.subplots(figsize=(13, 5))
-    ax.plot(ns_n, ls_n, linewidth=0.9, color='steelblue', label='Sem reset')
-    ax.plot(ns_r, ls_r, linewidth=0.9, color='darkorange', label='Com reset adaptativo')
-
     for i, pos in enumerate(reset_positions):
-        ax.axvline(x=pos, color='red', linestyle='-', linewidth=0.5, alpha=0.35,
+        ax.axvline(x=pos, color='green', linestyle='-', linewidth=0.6, alpha=0.4,
                    label='Reset' if i == 0 else None)
+
+    # Linhas vermelhas nas fronteiras de arquivo
+    corpus = pathlib.Path(corpus_dir)
+    files = sorted(f for f in corpus.iterdir() if f.is_file())
+    offset = 0
+    for i, f in enumerate(files):
+        if offset > 0:
+            ax.axvline(x=offset, color='red', linestyle='--', linewidth=0.8, alpha=0.6,
+                       label='Fronteira de arquivo' if i == 1 else None)
+            ax.text(offset, ax.get_ylim()[1], f' {f.name}', rotation=90, va='top',
+                    ha='left', fontsize=7, color='red', alpha=0.8)
+        offset += f.stat().st_size
 
     ax.set_xlabel('Posição n (bytes)', fontsize=12)
     ax.set_ylabel('L(n) = bits totais / n  (bits/símbolo)', fontsize=12)

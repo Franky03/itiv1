@@ -49,7 +49,7 @@ def run_silesia_progressive(max_order: int = 5, sample_every: int = 100, use_res
     writer  = BitWriter()
     arith   = ArithmeticEncoder(writer)
     model   = HashPPMModel(max_order)
-    monitor = ResetMonitor(1000, 50.0) if use_reset else None
+    monitor = ResetMonitor(10000, 80.0) if use_reset else None
 
     samples: list[tuple[int, float]] = []
     reset_positions: list[int] = []

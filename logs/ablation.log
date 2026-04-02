@@ -1,0 +1,15 @@
+nohup: ignoring input
+Carregando data/unified_dataset.parquet...
+  Total: 994,023  (humano=618,671 | IA=375,352)
+    ai_human_csv             : 487,184
+    ai_human_hf              : 461,337
+    hc3                      : 45,502
+
+Split treino/teste (80%/20%)...
+  Treino: 795,218 | Teste: 198,805
+
+============================================================
+TREINAMENTO DOS MODELOS
+============================================================
+  [A_all] Treino: 494,936 humanos | 300,282 IA  (1,124,314,920 / 612,061,840 chars)
+  [A_all] Treinando model_H...
