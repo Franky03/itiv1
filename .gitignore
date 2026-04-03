@@ -10,3 +10,4 @@ silesia/
 *.parquet
 *.log
 *.csv
+*.pkl

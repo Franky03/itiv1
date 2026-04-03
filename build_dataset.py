@@ -32,8 +32,19 @@ ZIP_PATH    = pathlib.Path("AI_Human.csv.zip")
 
 # ── Loaders ───────────────────────────────────────────────────────────────────
 
-def load_hc3(n: int | None) -> pd.DataFrame:
-    print("\n[1/3] Carregando HC3 (HuggingFace)...")
+RANDOM_SEED = 42
+
+
+def _sample_balanced(df: pd.DataFrame, n_per_class: int) -> pd.DataFrame:
+    """Amostra n_per_class exemplos de cada label (shuffle, sem reposição)."""
+    return (df.groupby("label", group_keys=False)
+              .apply(lambda x: x.sample(min(n_per_class, len(x)),
+                                        random_state=RANDOM_SEED))
+              .reset_index(drop=True))
+
+
+def load_hc3() -> pd.DataFrame:
+    print("\n[1/3] Carregando HC3 (HuggingFace) — dataset de referência...")
     ds = load_dataset(
         "json",
         data_files="hf://datasets/Hello-SimpleAI/HC3/all.jsonl",
@@ -41,8 +52,8 @@ def load_hc3(n: int | None) -> pd.DataFrame:
     )
     rows = []
     for sample in ds:
-        human = (sample.get("human_answers") or [""])[0]
-        gpt   = (sample.get("chatgpt_answers") or [""])[0]
+        human  = (sample.get("human_answers") or [""])[0]
+        gpt    = (sample.get("chatgpt_answers") or [""])[0]
         domain = sample.get("source", "unknown")
         if len(human) >= MIN_CHARS:
             rows.append({"text": human, "label": 0,
@@ -52,38 +63,37 @@ def load_hc3(n: int | None) -> pd.DataFrame:
                          "source_dataset": "hc3", "domain": domain})
 
     df = pd.DataFrame(rows)
-    if n:
-        # mantém balanço ao amostrar
-        df = (df.groupby("label", group_keys=False)
-                .apply(lambda x: x.sample(min(n // 2, len(x)), random_state=42)))
+    # Balanceia o próprio HC3 pelo menor lado
+    n_per_class = min((df.label == 0).sum(), (df.label == 1).sum())
+    df = _sample_balanced(df, n_per_class)
     print(f"  HC3: {len(df):,} linhas  "
-          f"(humano={( df.label==0).sum():,} | IA={(df.label==1).sum():,})")
+          f"(humano={(df.label==0).sum():,} | IA={(df.label==1).sum():,})")
     return df
 
 
-def load_ai_human_hf(n: int | None) -> pd.DataFrame:
-    print("\n[2/3] Carregando andythetechnerd03/AI-human-text (HuggingFace)...")
+def load_ai_human_hf(n_per_class: int) -> pd.DataFrame:
+    print(f"\n[2/3] Carregando andythetechnerd03/AI-human-text "
+          f"(HuggingFace) — {n_per_class:,} por classe...")
     ds = load_dataset("andythetechnerd03/AI-human-text", split="train")
     df = pd.DataFrame({"text": ds["text"], "label": [int(v) for v in ds["generated"]]})
     df = df[df["text"].str.len() >= MIN_CHARS].copy()
     df["source_dataset"] = "ai_human_hf"
     df["domain"]         = "unknown"
-    if n:
-        df = (df.groupby("label", group_keys=False)
-                .apply(lambda x: x.sample(min(n // 2, len(x)), random_state=42)))
+    df = _sample_balanced(df, n_per_class)
     print(f"  AI-human-hf: {len(df):,} linhas  "
           f"(humano={(df.label==0).sum():,} | IA={(df.label==1).sum():,})")
     return df
 
 
-def load_ai_human_csv(n: int | None) -> pd.DataFrame:
-    print("\n[3/3] Carregando AI_Human.csv.zip (local)...")
+def load_ai_human_csv(n_per_class: int) -> pd.DataFrame:
+    print(f"\n[3/3] Carregando AI_Human.csv.zip (local) "
+          f"— {n_per_class:,} por classe...")
     if not ZIP_PATH.exists():
         print(f"  AVISO: {ZIP_PATH} não encontrado — fonte ignorada.")
         return pd.DataFrame(columns=["text", "label", "source_dataset", "domain"])
 
     with zipfile.ZipFile(ZIP_PATH, "r") as zf:
-        csv_name = next(n for n in zf.namelist() if n.endswith(".csv"))
+        csv_name = next(name for name in zf.namelist() if name.endswith(".csv"))
         with zf.open(csv_name) as f:
             df_raw = pd.read_csv(
                 io.TextIOWrapper(f, encoding="utf-8", errors="replace")
@@ -96,9 +106,7 @@ def load_ai_human_csv(n: int | None) -> pd.DataFrame:
     df = df[df["text"].str.len() >= MIN_CHARS].copy()
     df["source_dataset"] = "ai_human_csv"
     df["domain"]         = "unknown"
-    if n:
-        df = (df.groupby("label", group_keys=False)
-                .apply(lambda x: x.sample(min(n // 2, len(x)), random_state=42)))
+    df = _sample_balanced(df, n_per_class)
     print(f"  AI-human-csv: {len(df):,} linhas  "
           f"(humano={(df.label==0).sum():,} | IA={(df.label==1).sum():,})")
     return df
@@ -106,18 +114,22 @@ def load_ai_human_csv(n: int | None) -> pd.DataFrame:
 
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
-def build(n_per_source: int | None, no_hf: bool) -> None:
+def build(no_hf: bool) -> None:
     DATA_DIR.mkdir(exist_ok=True)
 
-    parts = []
+    # HC3 carregado primeiro — define o tamanho de referência
+    df_hc3 = load_hc3()
+    n_per_class = (df_hc3.label == 0).sum()   # HC3 já está balanceado
+    print(f"\nReferência: {n_per_class:,} amostras por classe por fonte.")
+
+    parts = [df_hc3]
 
     if not no_hf:
-        parts.append(load_hc3(n_per_source))
-        parts.append(load_ai_human_hf(n_per_source))
+        parts.append(load_ai_human_hf(n_per_class))
     else:
         print("Pulando fontes HuggingFace (--no-hf).")
 
-    parts.append(load_ai_human_csv(n_per_source))
+    parts.append(load_ai_human_csv(n_per_class))
 
     df = pd.concat(parts, ignore_index=True)
 
@@ -158,9 +170,7 @@ def build(n_per_source: int | None, no_hf: bool) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Constrói dataset unificado")
-    parser.add_argument("-n", "--n-per-source", type=int, default=None,
-                        help="Limita cada fonte a N amostras (balanceado por label)")
     parser.add_argument("--no-hf", action="store_true",
                         help="Pula downloads do HuggingFace")
     args = parser.parse_args()
-    build(args.n_per_source, args.no_hf)
+    build(args.no_hf)
